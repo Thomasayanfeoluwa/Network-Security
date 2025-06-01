@@ -56,7 +56,7 @@ async def train_route():
     try:
         train_pipeline=TrainingPipeline()
         train_pipeline.run_pipeline()
-        return Response("Training is successful")
+        return Response("The Training is successful")
     except Exception as e:
         raise NetworkSecurityException(e,sys)
     

@@ -24,11 +24,11 @@ from sklearn.ensemble import (
     RandomForestClassifier,
 )
 import mlflow
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
+#mlflow.set_tracking_uri("http://127.0.0.1:5000")
 # from urllib.parse import urlparse
 
-# import dagshub
-# dagshub.init(repo_owner='ayanfeoluwadegoke', repo_name='Network-Security', mlflow=True)
+import dagshub
+dagshub.init(repo_owner='ayanfeoluwadegoke', repo_name='Network-Security', mlflow=True)
 
 # # os.environ["MLFLOW_TRACKING_URI"]="https://dagshub.com/krishnaik06/networksecurity.mlflow"
 # # os.environ["MLFLOW_TRACKING_USERNAME"]="krishnaik06"
@@ -47,8 +47,7 @@ class ModelTrainer:
             raise NetworkSecurityException(e,sys)
         
     def track_mlflow(self,best_model,classificationmetric):
-#         # mlflow.set_registry_uri("https://dagshub.com/krishnaik06/networksecurity.mlflow")
-#         mlflow.set_registry_uri("https://dagshub.com/ayanfeoluwadegoke/Network-Security")
+        #mlflow.set_tracking_uri("https://dagshub.com/ayanfeoluwadegoke/Network-Security.mlflow")
 #         tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
         with mlflow.start_run():
             f1_score=classificationmetric.f1_score
