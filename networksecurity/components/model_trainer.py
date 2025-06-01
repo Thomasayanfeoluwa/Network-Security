@@ -24,18 +24,14 @@ from sklearn.ensemble import (
     RandomForestClassifier,
 )
 import mlflow
-#mlflow.set_tracking_uri("http://127.0.0.1:5000")
-# from urllib.parse import urlparse
+from urllib.parse import urlparse
 
 import dagshub
 dagshub.init(repo_owner='ayanfeoluwadegoke', repo_name='Network-Security', mlflow=True)
 
-# # os.environ["MLFLOW_TRACKING_URI"]="https://dagshub.com/krishnaik06/networksecurity.mlflow"
-# # os.environ["MLFLOW_TRACKING_USERNAME"]="krishnaik06"
-# # os.environ["MLFLOW_TRACKING_PASSWORD"]="7104284f1bb44ece21e0e2adb4e36a250ae3251f"
-
-
-
+os.environ["MLFLOW_TRACKING_URI"] = "https://dagshub.com/ayanfeoluwadegoke/Network-Security.mlflow"
+os.environ["MLFLOW_TRACKING_USERNAME"] = "ayanfeoluwadegoke"
+os.environ["MLFLOW_TRACKING_PASSWORD"] = "aba5ebe2a5db20df4ec12f42502039cfa338ea68"
 
 
 class ModelTrainer:
@@ -47,8 +43,8 @@ class ModelTrainer:
             raise NetworkSecurityException(e,sys)
         
     def track_mlflow(self,best_model,classificationmetric):
-        #mlflow.set_tracking_uri("https://dagshub.com/ayanfeoluwadegoke/Network-Security.mlflow")
-#         tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
+        mlflow.set_tracking_uri("https://dagshub.com/ayanfeoluwadegoke/Network-Security.mlflow")
+        tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
         with mlflow.start_run():
             f1_score=classificationmetric.f1_score
             precision_score=classificationmetric.precision_score
