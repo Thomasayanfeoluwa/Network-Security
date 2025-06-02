@@ -15,9 +15,11 @@ jobs:
   integration:
     name: Continuous Integration
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Lint code
         run: echo "Linting repository"
@@ -29,9 +31,12 @@ jobs:
     name: Continuous Delivery
     needs: integration
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Utilities
         run: |
@@ -39,7 +44,7 @@ jobs:
           sudo apt-get install -y jq unzip
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -47,7 +52,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -63,21 +68,23 @@ jobs:
             echo "❌ ERROR: ECR_REPOSITORY is not set. Please define 'ECR_REPOSITORY_NAME' in GitHub secrets."
             exit 1
           fi
-
+          echo "Building and pushing image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker buildx build --platform linux/amd64 -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" . --push
-
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
   Continuous-Deployment:
     name: Continuous Deployment
     needs: build-and-push-ecr-image
     runs-on: self-hosted
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -85,7 +92,20 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Check disk space
+        run: |
+          echo "Checking available disk space..."
+          df -h /var/lib/docker || df -h
+          echo "Docker storage usage:"
+          du -sh /var/lib/docker || echo "Unable to check Docker storage"
+
+      - name: Clean up Docker system
+        run: |
+          echo "Cleaning up Docker resources..."
+          docker system prune -a -f
+          docker volume prune -f
 
       - name: Pull latest image from Amazon ECR
         env:
@@ -96,11 +116,18 @@ jobs:
             echo "❌ ERROR: ECR_REPOSITORY is not set. Please define 'ECR_REPOSITORY_NAME' in GitHub secrets."
             exit 1
           fi
+          echo "Pulling image: $ECR_REGISTRY/$ECR_REPOSITORY:latest"
           docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          if ! docker image inspect "$ECR_REGISTRY/$ECR_REPOSITORY:latest" >/dev/null 2>&1; then
+            echo "❌ ERROR: Failed to pull image $ECR_REGISTRY/$ECR_REPOSITORY:latest"
+            exit 1
+          fi
+          echo "Successfully pulled image"
 
       - name: Stop and remove existing container if running
         run: |
           if [ "$(docker ps -q -f name=networksecurity)" ]; then
+            echo "Stopping and removing existing networksecurity container..."
             docker stop networksecurity
             docker rm -fv networksecurity
           else
@@ -116,6 +143,7 @@ jobs:
             echo "❌ ERROR: ECR_REPOSITORY is not set. Please define 'ECR_REPOSITORY_NAME' in GitHub secrets."
             exit 1
           fi
+          echo "Running container from image: $ECR_REGISTRY/$ECR_REPOSITORY:latest"
           docker run -d -p 8080:8080 --ipc="host" --name=networksecurity \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
@@ -123,4 +151,6 @@ jobs:
             "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
 
       - name: Clean up Docker system
-        run: docker system prune -f
+        run: |
+          echo "Cleaning up Docker resources..."
+          docker system prune -f
