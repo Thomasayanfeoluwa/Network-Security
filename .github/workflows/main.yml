@@ -64,9 +64,8 @@ jobs:
             exit 1
           fi
 
-          echo "📦 Building image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker buildx build --platform linux/amd64 -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" . --push
-          echo "✅ Image pushed: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
           echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
   Continuous-Deployment:
@@ -74,7 +73,7 @@ jobs:
     needs: build-and-push-ecr-image
     runs-on: self-hosted
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Configure AWS credentials
@@ -92,15 +91,19 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
-          IMAGE_TAG: latest
         run: |
-          docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
 
-      - name: Stop and remove existing container
+      - name: Stop and remove existing container if running
         run: |
-          docker ps -q --filter "name=networksecurity" | grep -q . && docker stop networksecurity && docker rm -fv networksecurity || echo "No existing container"
+          if [ "$(docker ps -q -f name=networksecurity)" ]; then
+            docker stop networksecurity
+            docker rm -fv networksecurity
+          else
+            echo "No existing container to stop"
+          fi
 
-      - name: Run Docker Image
+      - name: Run Docker container
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
