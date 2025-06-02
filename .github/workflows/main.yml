@@ -94,6 +94,17 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Debug Secrets
+        env:
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
+        run: |
+          if [ -z "$ECR_REPOSITORY" ]; then
+            echo "❌ DEBUG: ECR_REPOSITORY is empty or unset"
+            exit 1
+          else
+            echo "✅ DEBUG: ECR_REPOSITORY is set (value masked for security)"
+          fi
+
       - name: Check disk space
         run: |
           echo "Checking available disk space..."
